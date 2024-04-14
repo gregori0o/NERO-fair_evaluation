@@ -56,7 +56,7 @@ def create_equal_size_bin_generator(
 
 
 def create_bin_generators(
-        description: tudataset.TUDatasetDescription,
+        description: tudataset.DatasetDescription,
         tag: str,
         parameter: Optional[int],
 ) -> List[digitisers.BinGenerator]:
@@ -105,7 +105,7 @@ def create_normaliser(tag: str) -> utils.ReplacingTransformer:
 
 
 def create_pipeline(
-        description: tudataset.TUDatasetDescription,
+        description: tudataset.DatasetDescription,
         tag: str,
         subvariant_parameters: Tuple[Optional[int], Optional[int], Optional[int]] = (None, None, None)
 ) -> skl_pipeline.Pipeline:
