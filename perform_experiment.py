@@ -20,6 +20,7 @@ import torch
 import nero.constants as constants
 import nero.converters.tudataset as tudataset
 import nero.converters.ogbdataset as ogbdataset
+import nero.converters.iamdataset as iamdataset
 import nero.embedding.pipelines as pipelines
 import nero.tools.logging as logging
 
@@ -40,6 +41,11 @@ class DatasetName(Enum):
     COLLAB = "COLLAB"
     MUTAG = "MUTAG"
     MOLHIV = "ogbg-molhiv"
+    # iam datasets
+    WEB = "Web"
+
+
+IAM_DATASETS = [DatasetName.WEB]
 
 
 def load_indexes(dataset_name: DatasetName):
@@ -72,6 +78,8 @@ def perform_experiment(dataset: DatasetName) -> None:
     dataset_name = dataset.value
     if dataset == DatasetName.MOLHIV:
         samples, classes, description = ogbdataset.ogbdataset2persisted(dataset_name)
+    elif dataset in IAM_DATASETS:
+        samples, classes, description = iamdataset.iamdataset2persisted(dataset_name)
     else:
         samples, classes, description = tudataset.tudataset2persisted(dataset_name)
     pipeline = pipelines.create_pipeline(description, 'AV0', (20, 20, None))
@@ -87,6 +95,8 @@ def perform_experiment(dataset: DatasetName) -> None:
         print(f"FOLD {i}")
         test_idx = fold["test"]
         train_idx = fold["train"]
+        # test_idx = list(range(2))
+        # train_idx = list(range(2, 10))
 
         train_samples = [samples[i] for i in train_idx]
         train_classes = [classes[i] for i in train_idx]
