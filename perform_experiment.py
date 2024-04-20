@@ -16,6 +16,7 @@ from enum import Enum
 import json
 import random
 import torch
+import time
 
 import nero.constants as constants
 import nero.converters.tudataset as tudataset
@@ -28,6 +29,8 @@ logger = logging.get_configured_logger()
 
 R_EVALUATION = 3
 SEED = 12
+experiment_name = time.strftime("%Y_%m_%d_%Hh%Mm%Ss")
+
 
 class DatasetName(Enum):
     DD = "DD"
@@ -76,6 +79,7 @@ def evaluate(proba, predictions, targets):
 
 def perform_experiment(dataset: DatasetName) -> None:
     dataset_name = dataset.value
+    print(f"Running experiment {experiment_name} on {dataset_name}")
     if dataset == DatasetName.MOLHIV:
         samples, classes, description = ogbdataset.ogbdataset2persisted(dataset_name)
     elif dataset in IAM_DATASETS:
@@ -138,6 +142,7 @@ def perform_experiment(dataset: DatasetName) -> None:
         }
     )
     print(df)
+    df.to_csv(f"results/{experiment_name}_{dataset_name}.csv")
 
 
 if __name__ == "__main__":

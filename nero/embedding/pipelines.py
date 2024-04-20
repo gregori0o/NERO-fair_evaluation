@@ -9,7 +9,7 @@ from nero.pipeline.transform import normalise, resize, utils
 from nero.tools import distributions
 
 TREES_NO = 1000
-JOBS_NO = 8
+JOBS_NO = -2
 
 
 class UnknownTagException(Exception):
