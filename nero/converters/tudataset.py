@@ -103,6 +103,10 @@ def tudataset2nx(dataset_name: str) -> List[nx.Graph]:
             for v in range(g.number_of_nodes()):
                 g.nodes[v]['labels'] = int_labels[i]
                 i += 1
+    else:
+        for g in dataset:
+            for v in range(g.number_of_nodes()):
+                g.nodes[v]['labels'] = [1]
 
     if os.path.exists(downloads / dataset_name / "raw" / (dataset_name + "_node_attributes.txt")):
         with open(downloads / dataset_name / "raw" / (dataset_name + "_node_attributes.txt"), "r") as f:

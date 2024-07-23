@@ -1,6 +1,7 @@
 from typing import List, Optional, Tuple
 
 from sklearn import pipeline as skl_pipeline, preprocessing as skl_preprocessing, ensemble as skl_ensemble
+from lightgbm import LGBMClassifier
 
 from nero import constants
 from nero.converters import tudataset
@@ -107,7 +108,8 @@ def create_normaliser(tag: str) -> utils.ReplacingTransformer:
 def create_pipeline(
         description: tudataset.DatasetDescription,
         tag: str,
-        subvariant_parameters: Tuple[Optional[int], Optional[int], Optional[int]] = (None, None, None)
+        subvariant_parameters: Tuple[Optional[int], Optional[int], Optional[int]] = (None, None, None),
+        classifier_type: str = 'extra_trees',
 ) -> skl_pipeline.Pipeline:
     digitiser_tag, compressor_tag, normaliser_tag = (tag[0], tag[1], tag[2])
     digitiser_parameter, compressor_parameter, _ = subvariant_parameters
@@ -118,11 +120,23 @@ def create_pipeline(
         jobs_no=JOBS_NO,
         disable_tqdm=True,
     )
-    classifier = skl_ensemble.ExtraTreesClassifier(
-        n_estimators=TREES_NO,
-        n_jobs=JOBS_NO,
-        verbose=False
-    )
+    
+    if classifier_type == 'extra_trees':
+        classifier = skl_ensemble.ExtraTreesClassifier(
+            n_estimators=TREES_NO,
+            n_jobs=JOBS_NO,
+            verbose=False
+        )
+        # raise ValueError("Extra Trees shouldn't be used now")
+    elif classifier_type == 'lightgbm':
+        classifier = LGBMClassifier(
+            n_estimators=TREES_NO,
+            n_jobs=JOBS_NO,
+            verbose=-1,
+        )
+    else:
+        raise ValueError(f"Unknown classifier type: {classifier_type}!")
+    
     return skl_pipeline.Pipeline([
         ('embed', embedder),
         ('resize_to_smallest_common_shape', resize.ToSmallestCommonShape(disable_tqdm=True)),

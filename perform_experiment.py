@@ -17,6 +17,8 @@ import json
 import random
 import torch
 import time
+import os
+import pickle
 
 import nero.constants as constants
 import nero.converters.tudataset as tudataset
@@ -46,9 +48,10 @@ class DatasetName(Enum):
     MOLHIV = "ogbg-molhiv"
     # iam datasets
     WEB = "Web"
+    MUTAGEN = "Mutagenicity"
 
 
-IAM_DATASETS = [DatasetName.WEB]
+IAM_DATASETS = [DatasetName.WEB, DatasetName.MUTAGEN]
 
 
 def load_indexes(dataset_name: DatasetName):
@@ -64,9 +67,18 @@ def evaluate(proba, predictions, targets):
     recall = recall_score(targets, predictions, average="micro")
     f1 = f1_score(targets, predictions, average="micro")
     macro_f1 = f1_score(targets, predictions, average="macro")
-    if proba.shape[1] == 2:
-        proba = proba[:, 1]
-    roc = roc_auc_score(targets, proba, average="macro", multi_class="ovr")
+    # if proba.shape[1] == 2:
+    #     proba = proba[:, 1]
+    # roc = roc_auc_score(targets, proba, average="macro", multi_class="ovr")
+
+    unique_values = np.unique(targets)
+    if len(unique_values) == proba.shape[1]:
+        if proba.shape[1] == 2:
+            proba = proba[:, 1]
+        roc = roc_auc_score(targets, proba, average="macro", multi_class="ovr")
+    else:
+        roc = 0
+
     return {
         "accuracy": accuracy,
         "precision": precision,
@@ -79,24 +91,50 @@ def evaluate(proba, predictions, targets):
 
 def perform_experiment(dataset: DatasetName) -> None:
     dataset_name = dataset.value
+    classifier_type = "lightgbm"
     print(f"Running experiment {experiment_name} on {dataset_name}")
-    if dataset == DatasetName.MOLHIV:
-        samples, classes, description = ogbdataset.ogbdataset2persisted(dataset_name)
-    elif dataset in IAM_DATASETS:
-        samples, classes, description = iamdataset.iamdataset2persisted(dataset_name)
+
+    dir_path = f"{constants.DOWNLOADS_DIR}/nero_cache/{dataset_name}"
+    file_path = f"{dir_path}/data.pickle"
+    print(f"Try to load data... ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
+    if os.path.exists(file_path):
+        file = open(file_path, 'rb')
+        loaded_data = pickle.load(file)
+        file.close()
+
+        samples, classes, description = loaded_data
+        print("Data loaded succesfully")
     else:
-        samples, classes, description = tudataset.tudataset2persisted(dataset_name)
-    pipeline = pipelines.create_pipeline(description, 'AV0', (20, 20, None))
+        print("File with data not exis, needs to recalculate data")
+        if dataset == DatasetName.MOLHIV:
+            samples, classes, description = ogbdataset.ogbdataset2persisted(dataset_name)
+        elif dataset in IAM_DATASETS:
+            samples, classes, description = iamdataset.iamdataset2persisted(dataset_name)
+        else:
+            samples, classes, description = tudataset.tudataset2persisted(dataset_name)
+        
+        # save preprocessed data
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
+        data_to_save = (samples, classes, description)
+        file = open(file_path, 'wb')
+        pickle.dump(data_to_save, file)
+        file.close()
+    print(f"Data prepared  ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
+    pipeline = pipelines.create_pipeline(description, 'AV0', (20, 20, None), classifier_type=classifier_type)
 
     csv_dir_path = pathlib.Path(constants.CSV_DIR)
     csv_dir_path.mkdir(parents=True, exist_ok=True)
     csv_file = f"{logging.formatted_today()}.csv"
     with open(csv_dir_path / csv_file, 'a') as file:
         file.write("Benchmark,Repetition,Split,Accuracy,Macro F1,ROC")
+    # csv_file = "2024_04_27_13_42_37.csv"
 
     indexes = load_indexes(dataset)
     for i, fold in enumerate(indexes):
-        print(f"FOLD {i}")
+        print(f"FOLD {i} ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
+        # if i < 7:
+        #     continue
         test_idx = fold["test"]
         train_idx = fold["train"]
         # test_idx = list(range(2))
@@ -122,6 +160,19 @@ def perform_experiment(dataset: DatasetName) -> None:
             # accuracy_score = pipeline.score(test_samples, test_classes)
             with open(csv_dir_path / csv_file, 'a') as file:
                 file.write(f"\n{dataset_name},{j},{i},{metrics['accuracy']},{metrics['macro f1']},{metrics['roc']}")
+        
+        df = pd.read_csv(csv_dir_path / csv_file)
+        df = df.groupby(
+            ['Benchmark', 'Split'], as_index=False,
+        ).aggregate(
+            {
+                'Accuracy': [np.mean],
+                'Macro F1': [np.mean],
+                'ROC': [np.mean],
+            }
+        )
+        print(df)
+        df.to_csv(f"results_{classifier_type}/{experiment_name}_{dataset_name}_after_fold_{i}.csv")
 
     df = pd.read_csv(csv_dir_path / csv_file)
     df = df.groupby(
@@ -142,7 +193,7 @@ def perform_experiment(dataset: DatasetName) -> None:
         }
     )
     print(df)
-    df.to_csv(f"results/{experiment_name}_{dataset_name}.csv")
+    df.to_csv(f"results_{classifier_type}/{experiment_name}_{dataset_name}.csv")
 
 
 if __name__ == "__main__":

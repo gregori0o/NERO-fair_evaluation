@@ -19,6 +19,8 @@ def separate_labels_and_attributes(graph: nx.Graph) -> nx.Graph:
     for node in graph.nodes:
         try:
             labels = graph.nodes[node]['labels']
+            if isinstance(labels, int):
+                labels = [labels]
             for i, label in enumerate(labels):
                 result.nodes[node][f'node_label_{i}'] = label
         except KeyError:
@@ -33,6 +35,8 @@ def separate_labels_and_attributes(graph: nx.Graph) -> nx.Graph:
         result.add_edge(edge_from, edge_to)
         try:
             labels = edge_data['labels']
+            if isinstance(labels, int):
+                labels = [labels]
             for i, label in enumerate(labels):
                 result.edges[edge_from, edge_to][f'edge_label_{i}'] = label
         except KeyError:
