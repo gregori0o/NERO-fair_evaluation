@@ -10,6 +10,7 @@ import nero.constants as constants
 import nero.tools.datasets as datasets
 import nero.tools.graphs as graphs
 from nero.converters.common import DatasetDescription
+from time_measure import time_measure
 
 
 def separate_labels_and_attributes(graph: nx.Graph) -> nx.Graph:
@@ -120,11 +121,7 @@ def discover_labels_and_attributes(dataset_name: str, graph: nx.Graph) -> Datase
     )
 
 
-def iamdataset2persisted(
-        dataset_name: str
-) -> Tuple[List[datasets.PersistedClassificationSample], List[int], DatasetDescription]:
-    iamdataset = torch.load(os.path.join(constants.DOWNLOADS_DIR, dataset_name, 'data.pt'))
-    dataset = iamdataset2nx(iamdataset)
+def prepare_dataset(dataset_name: str, dataset) -> Tuple[List[nx.Graph], List[int], DatasetDescription]:
     iamdataset_description = discover_labels_and_attributes(dataset_name, dataset[0])
     target_classes = [graph.graph['category'] for graph in dataset]
     converted_dataset = [
@@ -136,3 +133,12 @@ def iamdataset2persisted(
         for i, graph in enumerate(tqdm(converted_dataset, desc="Creating persisted samples"))
     ]
     return converted_dataset, target_classes, iamdataset_description
+
+def iamdataset2persisted(
+        dataset_name: str
+) -> Tuple[List[datasets.PersistedClassificationSample], List[int], DatasetDescription]:
+    iamdataset = torch.load(os.path.join(constants.DOWNLOADS_DIR, dataset_name, 'data.pt'))
+    dataset = iamdataset2nx(iamdataset)
+    return time_measure(prepare_dataset, "nero", dataset_name, "preparation")(
+        dataset_name, dataset
+    )

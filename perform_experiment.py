@@ -26,6 +26,7 @@ import nero.converters.ogbdataset as ogbdataset
 import nero.converters.iamdataset as iamdataset
 import nero.embedding.pipelines as pipelines
 import nero.tools.logging as logging
+from time_measure import time_measure
 
 logger = logging.get_configured_logger()
 
@@ -94,112 +95,51 @@ def perform_experiment(dataset: DatasetName) -> None:
     classifier_type = "lightgbm"
     print(f"Running experiment {experiment_name} on {dataset_name}")
 
-    dir_path = f"{constants.DOWNLOADS_DIR}/nero_cache/{dataset_name}"
-    file_path = f"{dir_path}/data.pickle"
-    print(f"Try to load data... ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
-    if os.path.exists(file_path):
-        file = open(file_path, 'rb')
-        loaded_data = pickle.load(file)
-        file.close()
-
-        samples, classes, description = loaded_data
-        print("Data loaded succesfully")
+    if dataset == DatasetName.MOLHIV:
+        samples, classes, description = ogbdataset.ogbdataset2persisted(dataset_name)
+    elif dataset in IAM_DATASETS:
+        samples, classes, description = iamdataset.iamdataset2persisted(dataset_name)
     else:
-        print("File with data not exis, needs to recalculate data")
-        if dataset == DatasetName.MOLHIV:
-            samples, classes, description = ogbdataset.ogbdataset2persisted(dataset_name)
-        elif dataset in IAM_DATASETS:
-            samples, classes, description = iamdataset.iamdataset2persisted(dataset_name)
-        else:
-            samples, classes, description = tudataset.tudataset2persisted(dataset_name)
-        
-        # save preprocessed data
-        if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
-        data_to_save = (samples, classes, description)
-        file = open(file_path, 'wb')
-        pickle.dump(data_to_save, file)
-        file.close()
-    print(f"Data prepared  ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
+        samples, classes, description = tudataset.tudataset2persisted(dataset_name)
     pipeline = pipelines.create_pipeline(description, 'AV0', (20, 20, None), classifier_type=classifier_type)
-
-    csv_dir_path = pathlib.Path(constants.CSV_DIR)
-    csv_dir_path.mkdir(parents=True, exist_ok=True)
-    csv_file = f"{logging.formatted_today()}.csv"
-    with open(csv_dir_path / csv_file, 'a') as file:
-        file.write("Benchmark,Repetition,Split,Accuracy,Macro F1,ROC")
-    # csv_file = "2024_04_27_13_42_37.csv"
 
     indexes = load_indexes(dataset)
     for i, fold in enumerate(indexes):
         print(f"FOLD {i} ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
-        # if i < 7:
-        #     continue
+
         test_idx = fold["test"]
         train_idx = fold["train"]
-        # test_idx = list(range(2))
-        # train_idx = list(range(2, 10))
 
         train_samples = [samples[i] for i in train_idx]
         train_classes = [classes[i] for i in train_idx]
         test_samples = [samples[i] for i in test_idx]
         test_classes = [classes[i] for i in test_idx]
 
-        for j in range(R_EVALUATION):
 
-            # setting seed
-            seed = SEED + j
-            random.seed(seed)
-            np.random.seed(seed)
-            torch.manual_seed(seed)
+        # setting seed
+        seed = SEED
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
 
-            pipeline.fit(train_samples, train_classes)
-            proba = pipeline.predict_proba(test_samples)
-            prediction = pipeline.predict(test_samples)
-            metrics = evaluate(proba, prediction, test_classes)
-            # accuracy_score = pipeline.score(test_samples, test_classes)
-            with open(csv_dir_path / csv_file, 'a') as file:
-                file.write(f"\n{dataset_name},{j},{i},{metrics['accuracy']},{metrics['macro f1']},{metrics['roc']}")
+        time_measure(pipeline.fit, "nero", dataset_name, "training")(train_samples, train_classes)
+
+        # pipeline.fit(train_samples, train_classes)
+
+        test_idx = list(range(128))
+        test_samples = [samples[i] for i in test_idx]
+        predictions = time_measure(pipeline.predict, "nero", dataset_name, "evaluation")(test_samples)
+        break
+
+
+        # proba = pipeline.predict_proba(test_samples)
+        # prediction = pipeline.predict(test_samples)
+        # metrics = evaluate(proba, prediction, test_classes)
+        # accuracy_score = pipeline.score(test_samples, test_classes)
         
-        df = pd.read_csv(csv_dir_path / csv_file)
-        df = df.groupby(
-            ['Benchmark', 'Split'], as_index=False,
-        ).aggregate(
-            {
-                'Accuracy': [np.mean],
-                'Macro F1': [np.mean],
-                'ROC': [np.mean],
-            }
-        )
-        print(df)
-        df.to_csv(f"results_{classifier_type}/{experiment_name}_{dataset_name}_after_fold_{i}.csv")
-
-    df = pd.read_csv(csv_dir_path / csv_file)
-    df = df.groupby(
-        ['Benchmark', 'Split'], as_index=False,
-    ).aggregate(
-        {
-            'Accuracy': [np.mean],
-            'Macro F1': [np.mean],
-            'ROC': [np.mean],
-        }
-    ).groupby(
-        ['Benchmark'], as_index=False,
-    ).aggregate(
-        {
-            ('Accuracy', 'mean'): [np.mean, np.std],
-            ('Macro F1', 'mean'): [np.mean, np.std],
-            ('ROC', 'mean'): [np.mean, np.std],
-        }
-    )
-    print(df)
-    df.to_csv(f"results_{classifier_type}/{experiment_name}_{dataset_name}.csv")
 
 
 if __name__ == "__main__":
-    # # test local
-    # perform_experiment(DatasetName.MUTAG)
-    # exit()
     parser = argparse.ArgumentParser("run_experiment")
     parser.add_argument("--dataset", help="Dataset name", type=str, choices=[d.value for d in DatasetName] + ["all"], default="all")
     args = parser.parse_args()
