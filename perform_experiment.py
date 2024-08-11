@@ -159,6 +159,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.dataset == "all":
         for dataset_name in DatasetName:
+            if dataset_name == DatasetName.WEB:
+                continue
             print(f"Running experiment on {dataset_name}")
             perform_experiment(dataset_name)
     else:
