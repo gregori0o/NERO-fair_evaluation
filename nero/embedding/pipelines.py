@@ -121,27 +121,10 @@ def create_pipeline(
         disable_tqdm=True,
     )
     
-    if classifier_type == 'extra_trees':
-        classifier = skl_ensemble.ExtraTreesClassifier(
-            n_estimators=TREES_NO,
-            n_jobs=JOBS_NO,
-            verbose=False
-        )
-        # raise ValueError("Extra Trees shouldn't be used now")
-    elif classifier_type == 'lightgbm':
-        classifier = LGBMClassifier(
-            n_estimators=TREES_NO,
-            n_jobs=JOBS_NO,
-            verbose=-1,
-        )
-    else:
-        raise ValueError(f"Unknown classifier type: {classifier_type}!")
-    
     return skl_pipeline.Pipeline([
         ('embed', embedder),
         ('resize_to_smallest_common_shape', resize.ToSmallestCommonShape(disable_tqdm=True)),
         ('normalise', create_normaliser(normaliser_tag)),
         ('flatten', resize.FlattenUpperTriangles(disable_tqdm=True)),
         ('scale', skl_preprocessing.StandardScaler()),
-        ('classify', classifier),
     ])

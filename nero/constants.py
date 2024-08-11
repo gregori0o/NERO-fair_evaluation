@@ -25,5 +25,6 @@ DOWNLOADS_DIR = f"{storage_path}/downloads"
 PICKLES_DIR = f"{storage_path}/pickles"
 LOGS_DIR = f"{storage_path}/results/logs"
 CSV_DIR = f"{storage_path}/results/csv"
+TRANSFORMED_DIR = f"{storage_path}/results/transformed"
 
 INSIGHT_BINS_NO = 500

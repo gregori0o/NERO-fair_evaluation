@@ -123,77 +123,31 @@ def perform_experiment(dataset: DatasetName) -> None:
     print(f"Data prepared  ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
     pipeline = pipelines.create_pipeline(description, 'AV0', (20, 20, None), classifier_type=classifier_type)
 
-    csv_dir_path = pathlib.Path(constants.CSV_DIR)
-    csv_dir_path.mkdir(parents=True, exist_ok=True)
-    csv_file = f"{logging.formatted_today()}.csv"
-    with open(csv_dir_path / csv_file, 'a') as file:
-        file.write("Benchmark,Repetition,Split,Accuracy,Macro F1,ROC")
-    # csv_file = "2024_04_27_13_42_37.csv"
+    transformed_dir_path = pathlib.Path(constants.TRANSFORMED_DIR) / dataset_name
+    transformed_dir_path.mkdir(parents=True, exist_ok=True)
 
     indexes = load_indexes(dataset)
     for i, fold in enumerate(indexes):
         print(f"FOLD {i} ----- {time.strftime('%Y_%m_%d_%Hh%Mm%Ss')}")
-        # if i < 7:
-        #     continue
-        test_idx = fold["test"]
+
+        # test_idx = fold["test"]
         train_idx = fold["train"]
-        # test_idx = list(range(2))
-        # train_idx = list(range(2, 10))
 
         train_samples = [samples[i] for i in train_idx]
         train_classes = [classes[i] for i in train_idx]
-        test_samples = [samples[i] for i in test_idx]
-        test_classes = [classes[i] for i in test_idx]
+        # test_samples = [samples[i] for i in test_idx]
+        # test_classes = [classes[i] for i in test_idx]
 
-        for j in range(R_EVALUATION):
+        seed = SEED
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
 
-            # setting seed
-            seed = SEED + j
-            random.seed(seed)
-            np.random.seed(seed)
-            torch.manual_seed(seed)
+        pipeline.fit(train_samples, train_classes)
+        transformed_data = pipeline.transform(samples)
 
-            pipeline.fit(train_samples, train_classes)
-            proba = pipeline.predict_proba(test_samples)
-            prediction = pipeline.predict(test_samples)
-            metrics = evaluate(proba, prediction, test_classes)
-            # accuracy_score = pipeline.score(test_samples, test_classes)
-            with open(csv_dir_path / csv_file, 'a') as file:
-                file.write(f"\n{dataset_name},{j},{i},{metrics['accuracy']},{metrics['macro f1']},{metrics['roc']}")
-        
-        df = pd.read_csv(csv_dir_path / csv_file)
-        df = df.groupby(
-            ['Benchmark', 'Split'], as_index=False,
-        ).aggregate(
-            {
-                'Accuracy': [np.mean],
-                'Macro F1': [np.mean],
-                'ROC': [np.mean],
-            }
-        )
-        print(df)
-        df.to_csv(f"results_{classifier_type}/{experiment_name}_{dataset_name}_after_fold_{i}.csv")
-
-    df = pd.read_csv(csv_dir_path / csv_file)
-    df = df.groupby(
-        ['Benchmark', 'Split'], as_index=False,
-    ).aggregate(
-        {
-            'Accuracy': [np.mean],
-            'Macro F1': [np.mean],
-            'ROC': [np.mean],
-        }
-    ).groupby(
-        ['Benchmark'], as_index=False,
-    ).aggregate(
-        {
-            ('Accuracy', 'mean'): [np.mean, np.std],
-            ('Macro F1', 'mean'): [np.mean, np.std],
-            ('ROC', 'mean'): [np.mean, np.std],
-        }
-    )
-    print(df)
-    df.to_csv(f"results_{classifier_type}/{experiment_name}_{dataset_name}.csv")
+        with open(transformed_dir_path / f"output_{i}.npy", 'wb') as f:
+            np.save(f, transformed_data)
 
 
 if __name__ == "__main__":
