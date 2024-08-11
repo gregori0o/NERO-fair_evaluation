@@ -44,12 +44,12 @@ class DatasetName(Enum):
     IMDB_MULTI = "IMDB-MULTI"
     REDDIT_BINARY = "REDDIT-BINARY"
     REDDIT_MULTI = "REDDIT-MULTI-5K"
-    COLLAB = "COLLAB"
     MUTAG = "MUTAG"
     MOLHIV = "ogbg-molhiv"
     # iam datasets
     WEB = "Web"
     MUTAGEN = "Mutagenicity"
+    COLLAB = "COLLAB"
 
 
 IAM_DATASETS = [DatasetName.WEB, DatasetName.MUTAGEN]
