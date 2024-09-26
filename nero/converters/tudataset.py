@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import pathlib
 import os.path
 from typing import List, Tuple
@@ -10,6 +9,7 @@ from tqdm import tqdm
 import nero.constants as constants
 import nero.tools.datasets as datasets
 import nero.tools.graphs as graphs
+from nero.converters.common import DatasetDescription
 
 
 def separate_labels_and_attributes(graph: nx.Graph) -> nx.Graph:
@@ -103,6 +103,10 @@ def tudataset2nx(dataset_name: str) -> List[nx.Graph]:
             for v in range(g.number_of_nodes()):
                 g.nodes[v]['labels'] = int_labels[i]
                 i += 1
+    else:
+        for g in dataset:
+            for v in range(g.number_of_nodes()):
+                g.nodes[v]['labels'] = [1]
 
     if os.path.exists(downloads / dataset_name / "raw" / (dataset_name + "_node_attributes.txt")):
         with open(downloads / dataset_name / "raw" / (dataset_name + "_node_attributes.txt"), "r") as f:
@@ -183,16 +187,7 @@ def tudataset2nx(dataset_name: str) -> List[nx.Graph]:
     return dataset
 
 
-@dataclass
-class TUDatasetDescription:
-    name: str
-    node_labels: int
-    edge_labels: int
-    node_attributes: int
-    edge_attributes: int
-
-
-def discover_labels_and_attributes(dataset_name: str, graph: nx.Graph) -> TUDatasetDescription:
+def discover_labels_and_attributes(dataset_name: str, graph: nx.Graph) -> DatasetDescription:
     node_labels = 0
     while len(nx.get_node_attributes(graph, f"node_label_{node_labels}")) > 0:
         node_labels += 1
@@ -205,7 +200,7 @@ def discover_labels_and_attributes(dataset_name: str, graph: nx.Graph) -> TUData
     edge_attributes = 0
     while len(nx.get_edge_attributes(graph, f"node_attribute_{edge_attributes}")) > 0:
         edge_attributes += 1
-    return TUDatasetDescription(
+    return DatasetDescription(
         name=dataset_name,
         node_labels=node_labels,
         edge_labels=edge_labels,
@@ -216,7 +211,7 @@ def discover_labels_and_attributes(dataset_name: str, graph: nx.Graph) -> TUData
 
 def tudataset2persisted(
         dataset_name: str
-) -> Tuple[List[datasets.PersistedClassificationSample], List[int], TUDatasetDescription]:
+) -> Tuple[List[datasets.PersistedClassificationSample], List[int], DatasetDescription]:
     TUDataset(constants.DOWNLOADS_DIR, dataset_name)
     dataset = tudataset2nx(dataset_name)
     tudataset_description = discover_labels_and_attributes(dataset_name, dataset[0])

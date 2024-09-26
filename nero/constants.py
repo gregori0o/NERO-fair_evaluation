@@ -17,10 +17,13 @@ AGH_LIGHT_GREY_COLOUR = percentage_rgb(130.0, 130.0, 130.0)
 STANDARD_ALPHA = 0.2
 STANDARD_LINE_WIDTH = 1.5
 
-CACHE_DIR = "/nero/cache"
-DOWNLOADS_DIR = "/nero/downloads"
-PICKLES_DIR = "/nero/pickles"
-LOGS_DIR = "/nero/results/logs"
-CSV_DIR = "/nero/results/csv"
+# storage_path = <local path>
+storage_path = "/net/tscratch/people/plgglegeza/nero"
+
+CACHE_DIR = f"{storage_path}/cache"
+DOWNLOADS_DIR = f"{storage_path}/downloads"
+PICKLES_DIR = f"{storage_path}/pickles"
+LOGS_DIR = f"{storage_path}/results/logs"
+CSV_DIR = f"{storage_path}/results/csv"
 
 INSIGHT_BINS_NO = 500
